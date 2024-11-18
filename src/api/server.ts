@@ -4,7 +4,9 @@ import { handleAuth, handleMe } from "./handlers/auth-handler";
 import {
   handleCreateCron,
   handleDeleteCron,
+  handleGetCron,
   handleGetCronList,
+  handleGetCronLogDetail,
   handleGetCronLogs,
   handleUpdateCron,
 } from "./handlers/cron-handler";
@@ -21,6 +23,12 @@ app.post("/v1/workspace/:workspaceId/cron", handleCreateCron);
 app.delete("/v1/workspace/:workspaceId/cron/:cronId", handleDeleteCron);
 app.get("/v1/workspace/:workspaceId/cron", handleGetCronList);
 app.post("/v1/workspace/:workspaceId/cron/:cronId", handleUpdateCron);
+app.get("/v1/workspace/:workspaceId/cron/:cronId", handleGetCron);
 app.get("/v1/workspace/:workspaceId/cron/:cronId/logs", handleGetCronLogs);
+
+app.get(
+  "/v1/workspace/:workspaceId/cron/:cronId/logs/:cronLogId",
+  handleGetCronLogDetail
+);
 
 export const expressApp = app;

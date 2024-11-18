@@ -52,7 +52,10 @@ export class PoormanToolApi extends Construct {
     });
 
     apiGateway.root.addProxy({
-      defaultIntegration: new apigw.LambdaIntegration(fn, { proxy: true }),
+      defaultIntegration: new apigw.LambdaIntegration(fn, {
+        proxy: true,
+      }),
+
       defaultCorsPreflightOptions: {
         allowOrigins: apigw.Cors.ALL_ORIGINS,
         allowMethods: apigw.Cors.ALL_METHODS,

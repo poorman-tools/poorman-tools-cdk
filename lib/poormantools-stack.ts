@@ -76,16 +76,36 @@ export class PoormantoolsStack extends cdk.Stack {
       }
     );
 
+    const lambdaRole = new iam.Role(this, `${PREFIX}-lambda-role`, {
+      roleName: `${PREFIX}-lambda-role`,
+      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
+    });
+
+    const cronRunnerRole = new iam.Role(this, `${PREFIX}-cron-runner-role`, {
+      roleName: `${PREFIX}-cron-runner-role`,
+      assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
+    });
+
     // Create IAM user for lamdba function
     const lambdaPolicy = new iam.Policy(this, `${PREFIX}-lambda-policy`, {
       statements: [
+        // Allow lambda to access DynamoDB and its secondary index
         new iam.PolicyStatement({
           actions: ["dynamodb:*"],
-          resources: [ddb.tableArn, cronLogTable.tableArn],
+          resources: [
+            ddb.tableArn,
+            `${ddb.tableArn}/index/*`,
+            cronLogTable.tableArn,
+            `${cronLogTable.tableArn}/index/*`,
+          ],
         }),
         new iam.PolicyStatement({
           actions: ["logs:*"],
           resources: ["*"],
+        }),
+        new iam.PolicyStatement({
+          actions: ["iam:PassRole"],
+          resources: [cronRunnerRole.roleArn],
         }),
         new iam.PolicyStatement({
           actions: ["events:*"],
@@ -100,16 +120,6 @@ export class PoormantoolsStack extends cdk.Stack {
           resources: ["*"],
         }),
       ],
-    });
-
-    const lambdaRole = new iam.Role(this, `${PREFIX}-lambda-role`, {
-      roleName: `${PREFIX}-lambda-role`,
-      assumedBy: new iam.ServicePrincipal("lambda.amazonaws.com"),
-    });
-
-    const cronRunnerRole = new iam.Role(this, `${PREFIX}-cron-runner-role`, {
-      roleName: `${PREFIX}-cron-runner-role`,
-      assumedBy: new iam.ServicePrincipal("scheduler.amazonaws.com"),
     });
 
     lambdaPolicy.attachToRole(lambdaRole);

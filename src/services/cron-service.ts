@@ -14,6 +14,7 @@ import {
 } from "@aws-sdk/client-scheduler";
 import { generateCronId } from "../helpers/nanoid";
 import { Environment } from "../env";
+import { parseSafeJSON } from "../helpers/safe-json";
 
 interface CronActionInput {
   type: "fetch";
@@ -293,6 +294,7 @@ export async function createCronLog(
   cronId: string,
   success: boolean,
   log: {
+    action?: CronActionInput;
     startedAt: string;
     status: string;
     body: string;
@@ -319,6 +321,7 @@ export async function createCronLog(
         Success: { BOOL: success },
         CronDuration: { N: String(log.duration ?? 0) },
         Content: { S: log.body.substring(0, 10000) },
+        CronAction: { S: log.action ? JSON.stringify(log.action) : "{}" },
         TTL: { N: String(ttl) },
       },
     })
@@ -355,10 +358,36 @@ export async function getCronLogs(
     cursor: LastEvaluatedKey?.SK.S,
     data: Items?.map((item) => ({
       Id: item.SK.S,
-      Status: item.Status?.S,
+      Status: item.CronStatus?.S,
       Success: item.Success.BOOL,
       Duration: Number(item.CronDuration?.N),
       StartedAt: item.StartedAt?.S,
     })),
+  };
+}
+
+export async function getCronLogDetail(cronId: string, logId: string) {
+  const client = new DynamoDBClient();
+
+  const { Item } = await client.send(
+    new GetItemCommand({
+      TableName: Environment.cronLogTableName,
+      Key: {
+        PK: { S: `cronlog#${cronId}` },
+        SK: { S: `log#${logId}` },
+      },
+    })
+  );
+
+  if (!Item) return null;
+
+  return {
+    Id: Item.SK.S,
+    Status: Item.CronStatus?.S,
+    Success: Item.Success.BOOL,
+    Duration: Number(Item.CronDuration?.N),
+    StartedAt: Item.StartedAt?.S,
+    Content: Item.Content?.S,
+    Action: parseSafeJSON(Item.CronAction?.S),
   };
 }

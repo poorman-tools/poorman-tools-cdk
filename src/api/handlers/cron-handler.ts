@@ -4,6 +4,7 @@ import {
   deleteCron,
   getCron,
   getCronList,
+  getCronLogDetail,
   getCronLogs,
   updateCron,
 } from "../../services/cron-service";
@@ -127,6 +128,28 @@ export const handleGetCronList = withWorkspaceSession<unknown>(
   }
 );
 
+export const handleGetCron = withWorkspaceSession<unknown, { cronId: string }>(
+  async ({ res, params, workspaceId }) => {
+    const cronId = params?.cronId;
+
+    if (!cronId) {
+      return res.status(400).json({ error: "Cron ID is required" });
+    }
+
+    const cron = await getCron(cronId);
+
+    if (!cron) {
+      return res.status(404).json({ error: "Cron not found" });
+    }
+
+    if (cron.WorkspaceId !== workspaceId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+
+    return res.json({ data: cron });
+  }
+);
+
 export const handleGetCronLogs = withWorkspaceSession<
   unknown,
   { cronId: string }
@@ -147,7 +170,34 @@ export const handleGetCronLogs = withWorkspaceSession<
     return res.status(403).json({ error: "Forbidden" });
   }
 
-  return res.json(await getCronLogs(cronId, 10));
+  return res.json({ ...(await getCronLogs(cronId, 10)), cron });
+});
+
+export const handleGetCronLogDetail = withWorkspaceSession<
+  unknown,
+  { cronId: string; cronLogId: string }
+>(async ({ res, params, workspaceId }) => {
+  const cronId = params?.cronId;
+  const cronLogId = params?.cronLogId;
+
+  if (!cronId || !cronLogId) {
+    return res.status(400).json({ error: "Cron ID is required" });
+  }
+
+  const cron = await getCron(cronId);
+
+  if (!cron) {
+    return res.status(404).json({ error: "Cron not found" });
+  }
+
+  if (cron.WorkspaceId !== workspaceId) {
+    return res.status(403).json({ error: "Forbidden" });
+  }
+
+  return res.json({
+    cron,
+    data: await getCronLogDetail(cronId, cronLogId),
+  });
 });
 
 export const handleUpdateCron = withWorkspaceSession<

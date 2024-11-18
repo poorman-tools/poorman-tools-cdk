@@ -77,6 +77,7 @@ export const handler: Handler = async (event: { cronId: string }, context) => {
     status,
     startedAt: startedDate,
     duration: Number(endedTime - startedTime),
+    action: cron.Setting.action,
   });
 
   return {
