@@ -114,7 +114,9 @@ export const handleCreateCron = withWorkspaceSession<CronOptionInput>(
 
     return res.json({
       success: true,
-      id: await createCron(workspaceId, user.Id, option),
+      data: {
+        Id: await createCron(workspaceId, user.Id, option),
+      },
     });
   }
 );

@@ -39,6 +39,7 @@ export class PoormanToolApi extends Construct {
       logGroup: logGroup,
       role,
       environment,
+      memorySize: 256,
     });
 
     // Create API endpoint with default 404 response handler

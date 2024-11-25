@@ -10,8 +10,13 @@ import * as scheduler from "aws-cdk-lib/aws-scheduler";
 import { Construct } from "constructs";
 import { PoormanToolApi } from "./poormantools-api";
 
-const PREFIX = "pmt";
-const API_DOMAIN_NAME = "api.poorman.tools";
+import { config } from "dotenv";
+config();
+
+const PREFIX = process.env.STACK_PREFIX ?? "pmt";
+const BASE_DOMAIN = process.env.STACK_BASE_DOMAIN!;
+const API_DOMAIN_NAME = `api.${BASE_DOMAIN}`;
+
 export class PoormantoolsStack extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
@@ -20,12 +25,12 @@ export class PoormantoolsStack extends cdk.Stack {
       this,
       `${PREFIX}-hosted-zone`,
       {
-        zoneName: "poorman.tools",
+        zoneName: BASE_DOMAIN,
       }
     );
 
     const apiCertificate = new certManager.Certificate(this, `${PREFIX}-cert`, {
-      domainName: "api.poorman.tools",
+      domainName: API_DOMAIN_NAME,
       certificateName: `${PREFIX}-cert`,
       validation: certManager.CertificateValidation.fromDns(apiHostedZone),
     });
@@ -35,7 +40,6 @@ export class PoormantoolsStack extends cdk.Stack {
       partitionKey: { name: "PK", type: dynamodb.AttributeType.STRING },
       sortKey: { name: "SK", type: dynamodb.AttributeType.STRING },
       tableName: `${PREFIX}-database`,
-      replicas: [{ region: "ap-southeast-1" }],
       timeToLiveAttribute: "TTL",
       globalSecondaryIndexes: [
         {
@@ -141,6 +145,7 @@ export class PoormantoolsStack extends cdk.Stack {
         role: lambdaRole,
         logGroup: logGroup,
         timeout: cdk.Duration.seconds(10),
+        memorySize: 128,
         environment: {
           SCHEDULER_GROUP_NAME: cronScheduleGroup.name ?? "",
           DDB_TABLE_NAME: ddb.tableName,
