@@ -11,6 +11,8 @@ import {
   CreateScheduleCommand,
   DeleteScheduleCommand,
   UpdateScheduleCommand,
+  GetScheduleCommand,
+  CreateScheduleCommandInput,
 } from "@aws-sdk/client-scheduler";
 import { generateCronId } from "../helpers/nanoid";
 import { Environment } from "../env";
@@ -64,6 +66,29 @@ function mapCronRecord(item: any): CronRecord {
   };
 }
 
+function mapCronInputToScheduleInput(
+  scheduleId: string,
+  cronId: string,
+  status: "ENABLED" | "DISABLED",
+  option: CronOptionInput
+): CreateScheduleCommandInput {
+  return {
+    Name: scheduleId,
+    ScheduleExpression: option.schedule.expression,
+    State: status,
+    Description: option.description,
+    GroupName: Environment.schedulerGroupName,
+    FlexibleTimeWindow: {
+      Mode: "OFF",
+    },
+    Target: {
+      Arn: Environment.lambdaExecuteCronArn,
+      Input: JSON.stringify({ cronId }),
+      RoleArn: Environment.roleArn,
+    },
+  };
+}
+
 export async function createCron(
   workspaceId: string,
   userId: string,
@@ -72,113 +97,119 @@ export async function createCron(
   const client = new DynamoDBClient();
   const cronId = generateCronId();
 
+  const scheduleClient = new SchedulerClient();
   const scheduleName = `pmt-schedule-${cronId}`;
 
-  await client.send(
-    new PutItemCommand({
-      TableName: Environment.tableName,
-      Item: {
-        PK: { S: `cron#${cronId}` },
-        SK: { S: `cron#${cronId}` },
-        GSI1PK: { S: `workspace#${workspaceId}` },
-        GSI1SK: { S: `cron#${cronId}` },
+  try {
+    await scheduleClient.send(
+      new CreateScheduleCommand(
+        mapCronInputToScheduleInput(scheduleName, cronId, "ENABLED", option)
+      )
+    );
 
-        Id: { S: cronId },
-        WorkspaceId: { S: workspaceId },
-        Name: { S: option.name },
-        Description: { S: option.description },
-        Setting: { S: JSON.stringify(option) },
-        CronStatus: { S: "ENABLED" }, // ENABLED, DISABLED, TOO_MANY_FAIL
-        CreatedBy: { S: userId },
-        CreatedAt: { S: new Date().toISOString() },
-        UpdatedAt: { S: new Date().toISOString() },
-        ScheduleId: { S: scheduleName },
-        FailedCount: { N: "0" },
-      },
-      ConditionExpression:
-        "attribute_not_exists(PK) AND attribute_not_exists(SK)",
-    })
-  );
+    await client.send(
+      new PutItemCommand({
+        TableName: Environment.tableName,
+        Item: {
+          PK: { S: `cron#${cronId}` },
+          SK: { S: `cron#${cronId}` },
+          GSI1PK: { S: `workspace#${workspaceId}` },
+          GSI1SK: { S: `cron#${cronId}` },
 
-  const scheduleClient = new SchedulerClient();
-  await scheduleClient.send(
-    new CreateScheduleCommand({
-      Name: scheduleName,
-      ScheduleExpression: option.schedule.expression,
-      State: "ENABLED",
-      Description: option.description,
-      GroupName: Environment.schedulerGroupName,
-      FlexibleTimeWindow: {
-        Mode: "OFF",
-      },
-      Target: {
-        Arn: Environment.lambdaExecuteCronArn,
-        Input: JSON.stringify({ cronId }),
-        RoleArn: Environment.roleArn,
-      },
-    })
-  );
+          Id: { S: cronId },
+          WorkspaceId: { S: workspaceId },
+          Name: { S: option.name },
+          Description: { S: option.description },
+          Setting: { S: JSON.stringify(option) },
+          CronStatus: { S: "ENABLED" }, // ENABLED, DISABLED, TOO_MANY_FAIL
+          CreatedBy: { S: userId },
+          CreatedAt: { S: new Date().toISOString() },
+          UpdatedAt: { S: new Date().toISOString() },
+          ScheduleId: { S: scheduleName },
+          FailedCount: { N: "0" },
+        },
+        ConditionExpression:
+          "attribute_not_exists(PK) AND attribute_not_exists(SK)",
+      })
+    );
 
-  return cronId;
+    return cronId;
+  } catch (error) {
+    // Clean up the schedule if failed to create the cron
+    console.error("Error during operation:", error);
+
+    try {
+      await scheduleClient.send(
+        new DeleteScheduleCommand({
+          GroupName: Environment.schedulerGroupName,
+          Name: scheduleName,
+        })
+      );
+    } catch (rollbackError) {
+      console.error("Failed to rollback schedule:", rollbackError);
+    }
+
+    throw error;
+  }
 }
 
 export async function updateCron(cron: CronRecord, option: CronOptionInput) {
   const client = new DynamoDBClient();
-
-  await client.send(
-    new UpdateItemCommand({
-      TableName: Environment.tableName,
-      Key: {
-        PK: { S: `cron#${cron.Id}` },
-        SK: { S: `cron#${cron.Id}` },
-      },
-      UpdateExpression:
-        "SET Setting = :setting, #Name = :name, Description = :description, UpdatedAt = :updatedAt",
-      ExpressionAttributeValues: {
-        ":setting": { S: JSON.stringify(option) },
-        ":name": { S: option.name },
-        ":description": { S: option.description },
-        ":updatedAt": { S: new Date().toISOString() },
-      },
-      ExpressionAttributeNames: {
-        "#Name": "Name",
-      },
-    })
-  );
-
   const scheduleClient = new SchedulerClient();
-  await scheduleClient.send(
-    new UpdateScheduleCommand({
-      Name: cron.ScheduleId,
-      ScheduleExpression: option.schedule.expression,
-      State: cron.Status === "ENABLED" ? "ENABLED" : "DISABLED",
-      Description: option.description,
-      GroupName: Environment.schedulerGroupName,
-      FlexibleTimeWindow: {
-        Mode: "OFF",
-      },
-      Target: {
-        Arn: Environment.lambdaExecuteCronArn,
-        Input: JSON.stringify({ cronId: cron.Id }),
-        RoleArn: Environment.roleArn,
-      },
-    })
-  );
+
+  try {
+    await scheduleClient.send(
+      new UpdateScheduleCommand(
+        mapCronInputToScheduleInput(
+          cron.ScheduleId,
+          cron.Id,
+          cron.Status === "ENABLED" ? "ENABLED" : "DISABLED",
+          option
+        )
+      )
+    );
+
+    await client.send(
+      new UpdateItemCommand({
+        TableName: Environment.tableName,
+        Key: {
+          PK: { S: `cron#${cron.Id}` },
+          SK: { S: `cron#${cron.Id}` },
+        },
+        UpdateExpression:
+          "SET Setting = :setting, #Name = :name, Description = :description, UpdatedAt = :updatedAt",
+        ExpressionAttributeValues: {
+          ":setting": { S: JSON.stringify(option) },
+          ":name": { S: option.name },
+          ":description": { S: option.description },
+          ":updatedAt": { S: new Date().toISOString() },
+        },
+        ExpressionAttributeNames: {
+          "#Name": "Name",
+        },
+      })
+    );
+  } catch {
+    throw new Error("Failed to update cron");
+  }
 }
 
 export async function deleteCron(cron: CronRecord) {
   const client = new DynamoDBClient();
+  const scheduleClient = new SchedulerClient();
 
-  try {
-    const scheduleClient = new SchedulerClient();
+  const schedule = await scheduleClient.send(
+    new GetScheduleCommand({ Name: cron.ScheduleId })
+  );
+
+  // If schedule exists, delete it, else skip it.
+  if (schedule) {
     await scheduleClient.send(
       new DeleteScheduleCommand({
         GroupName: Environment.schedulerGroupName,
         Name: cron.ScheduleId,
       })
     );
-  } catch (e) {
-    console.log("Failed to delete schedule", e);
   }
 
   await client.send(
@@ -228,15 +259,22 @@ export async function updateCronResetFailCount(cronId: string) {
   );
 }
 
-export async function disableFailedCron(cron: CronRecord) {
+export async function disableCron(
+  cron: CronRecord,
+  status: "TOO_MANY_FAIL" | "DISABLED"
+) {
   const client = new DynamoDBClient();
 
   const scheduleClient = new SchedulerClient();
   await scheduleClient.send(
-    new DeleteScheduleCommand({
-      GroupName: Environment.schedulerGroupName,
-      Name: cron.ScheduleId,
-    })
+    new UpdateScheduleCommand(
+      mapCronInputToScheduleInput(
+        cron.ScheduleId,
+        cron.Id,
+        "DISABLED",
+        cron.Setting
+      )
+    )
   );
 
   await client.send(

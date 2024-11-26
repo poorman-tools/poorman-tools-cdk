@@ -1,7 +1,7 @@
 import { Handler } from "aws-lambda";
 import {
   createCronLog,
-  disableFailedCron,
+  disableCron,
   getCron,
   updateCronFailCount,
   updateCronResetFailCount,
@@ -29,7 +29,7 @@ export const handler: Handler = async (event: { cronId: string }, context) => {
 
   if (cron.FailedCount >= 3) {
     // Disable the cron
-    await disableFailedCron(cron);
+    await disableCron(cron, "TOO_MANY_FAIL");
     return {
       statusCode: 200,
       body: JSON.stringify("Hello, world!"),

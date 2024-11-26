@@ -55,18 +55,6 @@ function validateOption(option: CronOptionInput) {
     return { error: "Invalid cron expression" };
   }
 
-  // Not allow cron of less than 5 minutes interval
-  if (cronParts[0] === "*") {
-    return { error: "Interval is too short" };
-  }
-
-  if (cronParts[0].includes("/")) {
-    const interval = parseInt(cronParts[0].split("/")[1]);
-    if (interval < 5) {
-      return { error: "Interval is too short" };
-    }
-  }
-
   if (!option.action) {
     return { error: "Action is required" };
   }
