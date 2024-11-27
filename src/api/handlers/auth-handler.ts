@@ -1,5 +1,8 @@
 import { withErrorHandler, withSessionHandler } from "../middleware";
-import { validateEmailAuth } from "../../services/auth-service";
+import {
+  validateEmailAuth,
+  validateGithubAuth,
+} from "../../services/auth-service";
 import { createSession } from "../../services/session-service";
 import { getWorkspaceByUser } from "../../services/workspace-service";
 
@@ -30,6 +33,23 @@ export const handleAuth = withErrorHandler(async ({ req, res }) => {
 
     res.status(200).json({
       token: await createSession(validated, {
+        userAgent: req.headers["user-agent"],
+        ip: req.ip ?? (req.headers["CloudFront-Viewer-Address"] as string),
+        country: req.headers["CloudFront-Viewer-Country-Name"] as string,
+      }),
+    });
+
+    return;
+  } else if (type === "github") {
+    const userId = await validateGithubAuth(req.body?.code);
+
+    if (!userId) {
+      res.status(400).json({ error: "Invalid Github code" });
+      return;
+    }
+
+    res.status(200).json({
+      token: await createSession(userId, {
         userAgent: req.headers["user-agent"],
         ip: req.ip ?? (req.headers["CloudFront-Viewer-Address"] as string),
         country: req.headers["CloudFront-Viewer-Country-Name"] as string,

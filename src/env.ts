@@ -7,4 +7,7 @@ export const Environment = Object.freeze({
   roleArn: process.env.ROLE_ARN as string,
   schedulerGroupName: process.env.SCHEDULER_GROUP_NAME as string,
   lambdaExecuteCronArn: process.env.LAMBDA_EXECUTE_CRON_ARN as string,
+
+  GITHUB_CLIENT_ID: process.env.GITHUB_CLIENT_ID!,
+  GITHUB_CLIENT_SECRET: process.env.GITHUB_CLIENT_SECRET!,
 });

@@ -1,5 +1,6 @@
 import * as cdk from "aws-cdk-lib";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
+import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
 import * as certManager from "aws-cdk-lib/aws-certificatemanager";
 import * as route53 from "aws-cdk-lib/aws-route53";
@@ -34,6 +35,13 @@ export class PoormantoolsStack extends cdk.Stack {
       certificateName: `${PREFIX}-cert`,
       validation: certManager.CertificateValidation.fromDns(apiHostedZone),
     });
+
+    // Create the secret manager
+    const secret = secretsManager.Secret.fromSecretNameV2(
+      this,
+      `${PREFIX}-secret-app`,
+      `${PREFIX}-secret-app`
+    );
 
     // Create app database
     const ddb = new dynamodb.TableV2(this, `${PREFIX}-database`, {
@@ -164,6 +172,12 @@ export class PoormantoolsStack extends cdk.Stack {
         ROLE_ARN: cronRunnerRole.roleArn,
         SCHEDULER_GROUP_NAME: cronScheduleGroup.name ?? "",
         LAMBDA_EXECUTE_CRON_ARN: executingCronLambda.functionArn,
+        GITHUB_CLIENT_ID: secret
+          .secretValueFromJson("GITHUB_CLIENT_ID")
+          .unsafeUnwrap(),
+        GITHUB_CLIENT_SECRET: secret
+          .secretValueFromJson("GITHUB_CLIENT_SECRET")
+          .unsafeUnwrap(),
       },
     });
 
