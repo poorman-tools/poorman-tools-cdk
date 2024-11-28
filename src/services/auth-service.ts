@@ -6,6 +6,7 @@ import {
 import { Environment } from "../env";
 import { Password } from "../helpers/password";
 import { createUser } from "./user-service";
+import { createWorkspace } from "./workspace-service";
 
 export async function createEmailAuth(
   userId: string,
@@ -126,6 +127,8 @@ export async function validateGithubAuth(code: string) {
         "attribute_not_exists(PK) AND attribute_not_exists(SK)",
     })
   );
+
+  await createWorkspace(newUserId, "Personal Workspace");
 
   return newUserId;
 }
