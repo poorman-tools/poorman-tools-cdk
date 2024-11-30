@@ -3,6 +3,7 @@ import {
   PutItemCommand,
   BatchGetItemCommand,
   DeleteItemCommand,
+  QueryCommand,
 } from "@aws-sdk/client-dynamodb";
 import { Environment } from "../env";
 import { generateSessionId } from "../helpers/nanoid";
@@ -30,6 +31,7 @@ export async function createSession(
         SK: { S: `session#${sessionId}` },
         GSI1PK: { S: `user#${userId}` },
         GSI1SK: { S: `session#${sessionId}` },
+        SessionId: { S: sessionId },
         UserId: { S: userId },
         TTL: { N: ttlInSeconds.toString() },
         CreatedAt: { S: new Date().toISOString() },
@@ -124,6 +126,30 @@ export async function validateSession(
   };
 }
 
+export async function getAllSessions(userId: string) {
+  const client = new DynamoDBClient();
+  const { Items } = await client.send(
+    new QueryCommand({
+      TableName: Environment.tableName,
+      IndexName: "GSI1",
+      KeyConditionExpression: "GSI1PK = :pk AND begins_with(GSI1SK, :sk)",
+      ExpressionAttributeValues: {
+        ":pk": { S: `user#${userId}` },
+        ":sk": { S: "session#" },
+      },
+    })
+  );
+
+  if (!Items) return [];
+
+  return Items.map((item) => ({
+    SessionId: item.PK.S!.replace("session#", ""),
+    CreatedAt: item.CreatedAt.S!,
+    LastUsedTimestamp: item.LastUsedTimestamp.N!,
+    UserAgent: item.UserAgent.S!,
+  }));
+}
+
 export async function revokeSession(sessionToken: string) {
   const client = new DynamoDBClient();
 
@@ -136,4 +162,19 @@ export async function revokeSession(sessionToken: string) {
       },
     })
   );
+}
+
+export async function revokeSuffixSession(
+  userId: string,
+  suffixSessionToken: string
+) {
+  const client = new DynamoDBClient();
+  const sessionList = await getAllSessions(userId);
+  const matchedSessions = sessionList.filter((s) =>
+    s.SessionId.endsWith(suffixSessionToken)
+  );
+
+  for (const matchedSession of matchedSessions) {
+    revokeSession(matchedSession.SessionId);
+  }
 }

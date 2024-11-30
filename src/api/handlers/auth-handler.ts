@@ -3,7 +3,12 @@ import {
   validateEmailAuth,
   validateGithubAuth,
 } from "../../services/auth-service";
-import { createSession } from "../../services/session-service";
+import {
+  createSession,
+  getAllSessions,
+  revokeSession,
+  revokeSuffixSession,
+} from "../../services/session-service";
 import { getWorkspaceByUser } from "../../services/workspace-service";
 
 export const handleAuth = withErrorHandler(async ({ req, res }) => {
@@ -71,5 +76,44 @@ export const handleMe = withSessionHandler(async ({ res, user }) => {
     Name: user.Name,
     Picture: user.Picture,
     Workspaces: workspaces,
+  });
+});
+
+export const handleRevokeSession = withSessionHandler<{
+  SessionId?: string;
+  SessionSuffix?: string;
+}>(async ({ res, user, body }) => {
+  if (body?.SessionId) {
+    // Revoke the session
+    await revokeSession(body.SessionId);
+    res.status(200).json({});
+    return;
+  } else if (body?.SessionSuffix) {
+    // Revoke the session based on its suffix
+    await revokeSuffixSession(user.Id, body.SessionSuffix);
+    res.status(200).json({});
+    return;
+  }
+
+  res
+    .status(400)
+    .json({ error: "Please specified SessionID or SessionSuffix" });
+});
+
+export const handleSessionList = withSessionHandler(async ({ res, user }) => {
+  // Get the list of session
+  const sessions = await getAllSessions(user.Id);
+
+  res.json({
+    data: sessions.map((session) => {
+      return {
+        SessionSuffix: session.SessionId.substring(
+          session.SessionId.length - 9
+        ),
+        CreatedAt: session.CreatedAt,
+        LastUsedTimestamp: session.LastUsedTimestamp,
+        UserAgent: session.UserAgent,
+      };
+    }),
   });
 });

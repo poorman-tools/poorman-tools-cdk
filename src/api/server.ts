@@ -1,6 +1,11 @@
 import express from "express";
 import cors from "cors";
-import { handleAuth, handleMe } from "./handlers/auth-handler";
+import {
+  handleAuth,
+  handleMe,
+  handleRevokeSession,
+  handleSessionList,
+} from "./handlers/auth-handler";
 import {
   handleCreateCron,
   handleDeleteCron,
@@ -17,6 +22,8 @@ app.use(express.json());
 app.use(cors());
 
 app.post("/v1/auth", handleAuth);
+app.get("/v1/auth/sessions", handleSessionList);
+app.post("/v1/auth/revoke", handleRevokeSession);
 app.get("/v1/me", handleMe);
 
 app.post("/v1/workspace/:workspaceId/cron", handleCreateCron);
