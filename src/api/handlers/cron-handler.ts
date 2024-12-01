@@ -145,7 +145,7 @@ export const handleGetCronLogs = withWorkspaceSession<
 >(async ({ req, params, workspaceId }) => {
   const cronId = params?.cronId;
   const limit = Number(req.query.limit ?? 20);
-  const offset = (req.query.offset as string) ?? undefined;
+  const cursor = (req.query?.cursor as string) ?? undefined;
 
   if (!cronId) {
     return new APIFailedResponse("Cron ID is required", 400);
@@ -162,7 +162,7 @@ export const handleGetCronLogs = withWorkspaceSession<
   }
 
   return new APISuccessResponse({
-    ...(await getCronLogs(cronId, limit, offset)),
+    ...(await getCronLogs(cronId, limit, cursor)),
     cron,
   });
 });

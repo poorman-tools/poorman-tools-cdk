@@ -342,7 +342,8 @@ export async function createCronLog(
   const client = new DynamoDBClient();
 
   // Rention for 2 days
-  const ttl = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 2;
+  const nowTimestamp = Math.floor(Date.now() / 1000);
+  const ttl = nowTimestamp + 60 * 60 * 24 * 2;
 
   // Counting the state
 
@@ -351,7 +352,7 @@ export async function createCronLog(
       TableName: Environment.cronLogTableName,
       Item: {
         PK: { S: `cronlog#${cronId}` },
-        SK: { S: `log#${log.startedAt}` },
+        SK: { S: nowTimestamp.toString() },
         GSI1PK: { S: `workspace#${workspaceId}` },
         GSI2SK: { S: `cronlog#${cronId}#${log.startedAt}` },
         StartedAt: { S: log.startedAt },
@@ -428,7 +429,7 @@ export async function getCronLogDetail(cronId: string, logId: string) {
       TableName: Environment.cronLogTableName,
       Key: {
         PK: { S: `cronlog#${cronId}` },
-        SK: { S: `log#${logId}` },
+        SK: { S: logId },
       },
     })
   );
