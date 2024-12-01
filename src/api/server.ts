@@ -8,6 +8,7 @@ import {
 } from "./handlers/auth-handler";
 import {
   handleCreateCron,
+  handleCronStatistic,
   handleDeleteCron,
   handleGetCron,
   handleGetCronList,
@@ -15,6 +16,7 @@ import {
   handleGetCronLogs,
   handleUpdateCron,
 } from "./handlers/cron-handler";
+
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
@@ -26,6 +28,9 @@ app.get("/v1/auth/sessions", handleSessionList);
 app.post("/v1/auth/revoke", handleRevokeSession);
 app.get("/v1/me", handleMe);
 
+/**
+ * Cron API
+ */
 app.post("/v1/workspace/:workspaceId/cron", handleCreateCron);
 app.delete("/v1/workspace/:workspaceId/cron/:cronId", handleDeleteCron);
 app.get("/v1/workspace/:workspaceId/cron", handleGetCronList);
@@ -37,5 +42,6 @@ app.get(
   "/v1/workspace/:workspaceId/cron/:cronId/logs/:cronLogId",
   handleGetCronLogDetail
 );
+app.get("/v1/stats/cron", handleCronStatistic);
 
 export const expressApp = app;

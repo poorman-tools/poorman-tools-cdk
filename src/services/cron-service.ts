@@ -446,3 +446,25 @@ export async function getCronLogDetail(cronId: string, logId: string) {
     Action: parseSafeJSON(Item.CronAction?.S),
   };
 }
+
+export async function getCronStatistic(startAt: string, endAt: string) {
+  const client = new DynamoDBClient();
+
+  const { Items } = await client.send(
+    new QueryCommand({
+      TableName: Environment.cronLogTableName,
+      KeyConditionExpression: "PK = :pk AND SK BETWEEN :start AND :end",
+      ExpressionAttributeValues: {
+        ":pk": { S: "daily-summary" },
+        ":start": { S: startAt },
+        ":end": { S: endAt },
+      },
+    })
+  );
+
+  return Items?.map((item) => ({
+    Date: item.SK.S,
+    SuccessCount: Number(item.SuccessCount?.N),
+    FailedCount: Number(item.FailedCount?.N),
+  }));
+}

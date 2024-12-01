@@ -6,11 +6,13 @@ import {
   getCronList,
   getCronLogDetail,
   getCronLogs,
+  getCronStatistic,
   updateCron,
 } from "../../services/cron-service";
 import {
   APIFailedResponse,
   APISuccessResponse,
+  withErrorHandler,
   withWorkspaceSession,
 } from "../middleware";
 
@@ -255,4 +257,16 @@ export const handleDeleteCron = withWorkspaceSession<
 
   await deleteCron(cron);
   return new APISuccessResponse({ success: true });
+});
+
+export const handleCronStatistic = withErrorHandler(async () => {
+  const yesterday = new Date(new Date().setDate(new Date().getDate() - 1))
+    .toISOString()
+    .split("T")[0];
+
+  const last30day = new Date(new Date().setDate(new Date().getDate() - 31))
+    .toISOString()
+    .split("T")[0];
+
+  return new APISuccessResponse(await getCronStatistic(last30day, yesterday));
 });
