@@ -344,7 +344,7 @@ export async function createCronLog(
   // Rention for 2 days
   const ttl = Math.floor(Date.now() / 1000) + 60 * 60 * 24 * 2;
 
-  // Trim the body to 10,000 characters.
+  // Counting the state
 
   await client.send(
     new PutItemCommand({
@@ -361,6 +361,22 @@ export async function createCronLog(
         Content: { S: log.body.substring(0, 10000) },
         CronAction: { S: log.action ? JSON.stringify(log.action) : "{}" },
         TTL: { N: String(ttl) },
+      },
+    })
+  );
+
+  await client.send(
+    new UpdateItemCommand({
+      TableName: Environment.cronLogTableName,
+      Key: {
+        PK: { S: "daily-summary" },
+        SK: { S: new Date().toISOString().split("T")[0] },
+      },
+      UpdateExpression:
+        "ADD SuccessCount :successCount, FailedCount :failCount",
+      ExpressionAttributeValues: {
+        ":successCount": { N: success ? "1" : "0" },
+        ":failCount": { N: success ? "0" : "1" },
       },
     })
   );

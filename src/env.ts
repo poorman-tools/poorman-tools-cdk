@@ -1,5 +1,8 @@
 import { config } from "dotenv";
-config();
+
+config({
+  path: `.env.${process.env.POORMAN_ENV}`,
+});
 
 export const Environment = Object.freeze({
   tableName: process.env.DDB_TABLE_NAME as string,

@@ -5,11 +5,12 @@
     "poormantools": "bin/poormantools.js"
   },
   "scripts": {
-    "dev:api": "bun --hot run src/api/serve.ts",
+    "dev:api": "cross-env POORMAN_ENV=development bun --hot run src/api/serve.ts",
     "build": "tsc",
     "watch": "tsc -w",
     "test": "jest",
-    "cdk": "cdk"
+    "deploy:dev": "cross-env POORMAN_ENV=development cdk deploy --profile poorman-dev",
+    "deploy:prod": "cross-env POORMAN_ENV=production cdk deploy --profile poorman-prod"
   },
   "devDependencies": {
     "@types/aws-lambda": "^8.10.145",
@@ -30,6 +31,7 @@
     "aws-cdk-lib": "2.163.1",
     "constructs": "^10.0.0",
     "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
     "dotenv": "^16.4.5",
     "express": "^4.21.1",
     "nanoid": "^5.0.8",

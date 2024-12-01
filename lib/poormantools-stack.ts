@@ -10,9 +10,16 @@ import * as iam from "aws-cdk-lib/aws-iam";
 import * as scheduler from "aws-cdk-lib/aws-scheduler";
 import { Construct } from "constructs";
 import { PoormanToolApi } from "./poormantools-api";
-
 import { config } from "dotenv";
-config();
+
+// How to get CDK profile name
+if (!["production", "development"].includes(process.env.POORMAN_ENV ?? "")) {
+  throw "You cannot run without specifying the environment";
+}
+
+config({
+  path: `.env.${process.env.POORMAN_ENV}`,
+});
 
 const PREFIX = process.env.STACK_PREFIX ?? "pmt";
 const BASE_DOMAIN = process.env.STACK_BASE_DOMAIN!;
