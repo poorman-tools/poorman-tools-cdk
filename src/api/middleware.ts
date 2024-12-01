@@ -9,17 +9,41 @@ interface BasicHandlerProps<BodyType = unknown, ParamType = unknown> {
   params?: ParamType;
 }
 
+export class APISuccessResponse {
+  constructor(public data: unknown) {
+    this.data = data;
+  }
+}
+
+export class APIFailedResponse {
+  constructor(public error: string, public statusCode: number = 400) {
+    this.error = error;
+    this.statusCode = statusCode;
+  }
+}
+
+export type APIResponse = APISuccessResponse | APIFailedResponse;
+
 export function withErrorHandler<BodyType = unknown, ParamType = unknown>(
-  handler: (props: BasicHandlerProps<BodyType, ParamType>) => Promise<void>
+  handler: (
+    props: BasicHandlerProps<BodyType, ParamType>
+  ) => Promise<APIResponse>
 ): Handler {
   return async (req, res) => {
     try {
-      await handler({
+      const response = await handler({
         req,
         res,
         body: req.body,
         params: req.params as ParamType,
       });
+
+      if (response instanceof APISuccessResponse) {
+        res.json({ data: response.data });
+      } else {
+        res.status(response.statusCode).json({ error: response.error });
+        console.error(response.error);
+      }
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: "Internal server error" });
@@ -36,7 +60,7 @@ interface BasicHandlerWithUserProps<BodyType = unknown, ParamType = unknown>
 export function withSessionHandler<BodyType = unknown, ParamType = unknown>(
   handler: (
     props: BasicHandlerWithUserProps<BodyType, ParamType>
-  ) => Promise<void>
+  ) => Promise<APIResponse>
 ): Handler {
   return withErrorHandler(
     async (props: BasicHandlerProps<BodyType, ParamType>) => {
@@ -44,14 +68,12 @@ export function withSessionHandler<BodyType = unknown, ParamType = unknown>(
 
       const authorization = req.headers["authorization"];
       if (!authorization) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
+        return new APIFailedResponse("Unauthorized", 401);
       }
 
       const [bearer, bearerToken] = authorization.split(" ");
       if (bearer !== "Bearer") {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
+        return new APIFailedResponse("Unauthorized", 401);
       }
 
       // Check if session is valid
@@ -61,11 +83,10 @@ export function withSessionHandler<BodyType = unknown, ParamType = unknown>(
       );
 
       if (!session?.user) {
-        res.status(401).json({ error: "Unauthorized" });
-        return;
+        return new APIFailedResponse("Unauthorized", 401);
       }
 
-      await handler({
+      return await handler({
         ...props,
         user: session.user,
         session,
@@ -85,20 +106,19 @@ interface BasicHandlerWithWorkspaceProps<
 export function withWorkspaceSession<BodyType = unknown, ParamType = unknown>(
   handler: (
     props: BasicHandlerWithWorkspaceProps<BodyType, ParamType>
-  ) => Promise<any>
+  ) => Promise<APIResponse>
 ) {
   return withSessionHandler<BodyType, ParamType>(
     async (props: BasicHandlerWithUserProps<BodyType, ParamType>) => {
-      const { req, res, session } = props;
+      const { req, session } = props;
 
       const workspaceId = req.params?.workspaceId;
 
       if (!workspaceId) {
-        res.status(400).json({ error: "Bad request" });
-        return;
+        return new APIFailedResponse("Bad request");
       }
 
-      await handler({
+      return await handler({
         ...props,
         workspaceId,
         workspaceRole: session.role,

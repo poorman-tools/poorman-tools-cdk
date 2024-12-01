@@ -8,7 +8,11 @@ import {
   getCronLogs,
   updateCron,
 } from "../../services/cron-service";
-import { withWorkspaceSession } from "../middleware";
+import {
+  APIFailedResponse,
+  APISuccessResponse,
+  withWorkspaceSession,
+} from "../middleware";
 
 function validateOption(option: CronOptionInput) {
   // Validate the option
@@ -88,167 +92,167 @@ function validateOption(option: CronOptionInput) {
 }
 
 export const handleCreateCron = withWorkspaceSession<CronOptionInput>(
-  async ({ res, user, workspaceId, body }) => {
+  async ({ user, workspaceId, body }) => {
     if (!body) {
-      return res.status(400).json({ error: "Body is required" });
+      return new APIFailedResponse("Body is required", 400);
     }
 
     const option = body;
     const validated = validateOption(option);
 
     if (validated?.error) {
-      return res.status(400).json(validated.error);
+      return new APIFailedResponse(validated.error, 400);
     }
 
-    return res.json({
-      success: true,
-      data: {
-        Id: await createCron(workspaceId, user.Id, option),
-      },
+    return new APISuccessResponse({
+      Id: await createCron(workspaceId, user.Id, option),
     });
   }
 );
 
 export const handleGetCronList = withWorkspaceSession<unknown>(
-  async ({ res, workspaceId }) => {
+  async ({ workspaceId }) => {
     // Get list of cron jobs of the workspace
-    return res.json({
-      data: await getCronList(workspaceId),
-    });
+    return new APISuccessResponse(await getCronList(workspaceId));
   }
 );
 
 export const handleGetCron = withWorkspaceSession<unknown, { cronId: string }>(
-  async ({ res, params, workspaceId }) => {
+  async ({ params, workspaceId }) => {
     const cronId = params?.cronId;
 
     if (!cronId) {
-      return res.status(400).json({ error: "Cron ID is required" });
+      return new APIFailedResponse("Cron ID is required", 400);
     }
 
     const cron = await getCron(cronId);
 
     if (!cron) {
-      return res.status(404).json({ error: "Cron not found" });
+      return new APIFailedResponse("Cron not found", 404);
     }
 
     if (cron.WorkspaceId !== workspaceId) {
-      return res.status(403).json({ error: "Forbidden" });
+      return new APIFailedResponse("Forbidden", 403);
     }
 
-    return res.json({ data: cron });
+    return new APISuccessResponse(cron);
   }
 );
 
 export const handleGetCronLogs = withWorkspaceSession<
   unknown,
   { cronId: string }
->(async ({ res, params, workspaceId }) => {
+>(async ({ req, params, workspaceId }) => {
   const cronId = params?.cronId;
+  const limit = Number(req.query.limit ?? 20);
+  const offset = (req.query.offset as string) ?? undefined;
 
   if (!cronId) {
-    return res.status(400).json({ error: "Cron ID is required" });
+    return new APIFailedResponse("Cron ID is required", 400);
   }
 
   const cron = await getCron(cronId);
 
   if (!cron) {
-    return res.status(404).json({ error: "Cron not found" });
+    return new APIFailedResponse("Cron not found", 404);
   }
 
   if (cron.WorkspaceId !== workspaceId) {
-    return res.status(403).json({ error: "Forbidden" });
+    return new APIFailedResponse("Forbidden", 403);
   }
 
-  return res.json({ ...(await getCronLogs(cronId, 10)), cron });
+  return new APISuccessResponse({
+    ...(await getCronLogs(cronId, limit, offset)),
+    cron,
+  });
 });
 
 export const handleGetCronLogDetail = withWorkspaceSession<
   unknown,
   { cronId: string; cronLogId: string }
->(async ({ res, params, workspaceId }) => {
+>(async ({ params, workspaceId }) => {
   const cronId = params?.cronId;
   const cronLogId = params?.cronLogId;
 
   if (!cronId || !cronLogId) {
-    return res.status(400).json({ error: "Cron ID is required" });
+    return new APIFailedResponse("Cron ID is required", 400);
   }
 
   const cron = await getCron(cronId);
 
   if (!cron) {
-    return res.status(404).json({ error: "Cron not found" });
+    return new APIFailedResponse("Cron not found", 404);
   }
 
   if (cron.WorkspaceId !== workspaceId) {
-    return res.status(403).json({ error: "Forbidden" });
+    return new APIFailedResponse("Forbidden", 403);
   }
 
-  return res.json({
+  return new APISuccessResponse({
     cron,
-    data: await getCronLogDetail(cronId, cronLogId),
+    log: await getCronLogDetail(cronId, cronLogId),
   });
 });
 
 export const handleUpdateCron = withWorkspaceSession<
   CronOptionInput,
   { cronId: string }
->(async ({ res, params, workspaceId, body }) => {
+>(async ({ params, workspaceId, body }) => {
   if (!body) {
-    return res.status(400).json({ error: "Body is required" });
+    return new APIFailedResponse("Body is required", 400);
   }
 
   const option = body;
   const validated = validateOption(option);
 
   if (validated?.error) {
-    return res.status(400).json(validated.error);
+    return new APIFailedResponse(validated.error, 400);
   }
 
   // Check if cron exists
   const cronId = params?.cronId;
 
   if (!cronId) {
-    return res.status(400).json({ error: "Cron ID is required" });
+    return new APIFailedResponse("Cron ID is required", 400);
   }
 
   if (!option) {
-    return res.status(400).json({ error: "Option is required" });
+    return new APIFailedResponse("Option is required", 400);
   }
 
   const cron = await getCron(cronId);
 
   if (!cron) {
-    return res.status(404).json({ error: "Cron not found" });
+    return new APIFailedResponse("Cron not found", 404);
   }
 
   if (cron.WorkspaceId !== workspaceId) {
-    return res.status(403).json({ error: "Forbidden" });
+    return new APIFailedResponse("Forbidden", 403);
   }
 
   await updateCron(cron, option);
-  return res.json({ success: true });
+  return new APISuccessResponse({ success: true });
 });
 
 export const handleDeleteCron = withWorkspaceSession<
   unknown,
   { cronId: string }
->(async ({ res, params, workspaceId }) => {
+>(async ({ params, workspaceId }) => {
   const cronId = params?.cronId;
   if (!cronId) {
-    return res.status(400).json({ error: "Cron ID is required" });
+    return new APIFailedResponse("Cron ID is required", 400);
   }
 
   const cron = await getCron(cronId);
 
   if (!cron) {
-    return res.status(404).json({ error: "Cron not found" });
+    return new APIFailedResponse("Cron not found", 404);
   }
 
   if (cron.WorkspaceId !== workspaceId) {
-    return res.status(403).json({ error: "Forbidden" });
+    return new APIFailedResponse("Forbidden", 403);
   }
 
   await deleteCron(cron);
-  return res.json({ success: true });
+  return new APISuccessResponse({ success: true });
 });

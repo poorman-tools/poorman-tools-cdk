@@ -410,7 +410,7 @@ export async function getCronLogs(
 
   return {
     cursor: LastEvaluatedKey?.SK.S,
-    data: Items?.map((item) => ({
+    logs: Items?.map((item) => ({
       Id: item.SK.S,
       Status: item.CronStatus?.S,
       Success: item.Success.BOOL,
