@@ -1,4 +1,5 @@
 import * as cdk from "aws-cdk-lib";
+import * as ses from "aws-cdk-lib/aws-ses";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as secretsManager from "aws-cdk-lib/aws-secretsmanager";
 import * as lambdaNodejs from "aws-cdk-lib/aws-lambda-nodejs";
@@ -86,6 +87,16 @@ export class PoormantoolsStack extends cdk.Stack {
       }
     );
 
+    // Setup email services
+    const emailIdentity = new ses.EmailIdentity(
+      this,
+      `${PREFIX}-email-identity`,
+      {
+        identity: ses.Identity.publicHostedZone(apiHostedZone),
+        mailFromDomain: `mail.${BASE_DOMAIN}`,
+      }
+    );
+
     // Create the event bridge schedule group
     const cronScheduleGroup = new scheduler.CfnScheduleGroup(
       this,
@@ -117,6 +128,10 @@ export class PoormantoolsStack extends cdk.Stack {
             cronLogTable.tableArn,
             `${cronLogTable.tableArn}/index/*`,
           ],
+        }),
+        new iam.PolicyStatement({
+          actions: ["ses:SendEmail", "ses:SendRawEmail"],
+          resources: ["*"],
         }),
         new iam.PolicyStatement({
           actions: ["logs:*"],

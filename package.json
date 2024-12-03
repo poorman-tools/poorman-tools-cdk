@@ -28,6 +28,7 @@
   "dependencies": {
     "@aws-sdk/client-dynamodb": "^3.687.0",
     "@aws-sdk/client-scheduler": "^3.691.0",
+    "@aws-sdk/client-ses": "^3.699.0",
     "aws-cdk-lib": "2.163.1",
     "constructs": "^10.0.0",
     "cors": "^2.8.5",

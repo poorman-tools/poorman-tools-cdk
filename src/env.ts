@@ -1,7 +1,7 @@
 import { config } from "dotenv";
 
 config({
-  path: `.env.${process.env.POORMAN_ENV}`,
+  path: `.env.${process.env.POORMAN_ENV ?? "development"}`,
 });
 
 export const Environment = Object.freeze({
