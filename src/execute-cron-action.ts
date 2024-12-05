@@ -27,7 +27,7 @@ export const handler: Handler = async (event: { cronId: string }, context) => {
     throw new Error("Cron not found");
   }
 
-  if (cron.FailedCount >= 3) {
+  if (cron.FailedCount >= 1440) {
     // Disable the cron
     await disableCron(cron, "TOO_MANY_FAIL");
     return {
