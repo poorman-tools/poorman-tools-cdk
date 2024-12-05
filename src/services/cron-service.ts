@@ -13,6 +13,8 @@ import {
   UpdateScheduleCommand,
   GetScheduleCommand,
   CreateScheduleCommandInput,
+  UpdateScheduleInput,
+  UpdateScheduleCommandInput,
 } from "@aws-sdk/client-scheduler";
 import { generateCronId } from "../helpers/nanoid";
 import { Environment } from "../env";
@@ -85,6 +87,10 @@ function mapCronInputToScheduleInput(
       Arn: Environment.lambdaExecuteCronArn,
       Input: JSON.stringify({ cronId }),
       RoleArn: Environment.roleArn,
+      RetryPolicy: {
+        MaximumEventAgeInSeconds: 60,
+        MaximumRetryAttempts: 0,
+      },
     },
   };
 }
@@ -266,15 +272,23 @@ export async function disableCron(
   const client = new DynamoDBClient();
 
   const scheduleClient = new SchedulerClient();
+
+  const schedule = await scheduleClient.send(
+    new GetScheduleCommand({
+      Name: cron.ScheduleId,
+      GroupName: Environment.schedulerGroupName,
+    })
+  );
+
+  const input = mapCronInputToScheduleInput(
+    cron.ScheduleId,
+    cron.Id,
+    "DISABLED",
+    cron.Setting
+  ) as UpdateScheduleCommandInput;
+
   await scheduleClient.send(
-    new UpdateScheduleCommand(
-      mapCronInputToScheduleInput(
-        cron.ScheduleId,
-        cron.Id,
-        "DISABLED",
-        cron.Setting
-      )
-    )
+    new UpdateScheduleCommand({ ...input, Target: schedule.Target })
   );
 
   await client.send(
@@ -286,7 +300,7 @@ export async function disableCron(
       },
       UpdateExpression: "SET CronStatus = :status",
       ExpressionAttributeValues: {
-        ":status": { S: "TOO_MANY_FAIL" },
+        ":status": { S: status },
       },
     })
   );

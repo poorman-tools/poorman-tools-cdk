@@ -177,6 +177,7 @@ export class PoormantoolsStack extends cdk.Stack {
         timeout: cdk.Duration.seconds(10),
         memorySize: 128,
         environment: {
+          ROLE_ARN: cronRunnerRole.roleArn,
           SCHEDULER_GROUP_NAME: cronScheduleGroup.name ?? "",
           DDB_TABLE_NAME: ddb.tableName,
           DDB_TABLE_NAME_CRON_LOG: cronLogTable.tableName,
