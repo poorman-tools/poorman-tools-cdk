@@ -183,19 +183,21 @@ export async function updateCron(cron: CronRecord, option: CronOptionInput) {
           SK: { S: `cron#${cron.Id}` },
         },
         UpdateExpression:
-          "SET Setting = :setting, #Name = :name, Description = :description, UpdatedAt = :updatedAt",
+          "SET Setting = :setting, #Name = :name, Description = :description, UpdatedAt = :updatedAt, CronStatus = :status",
         ExpressionAttributeValues: {
           ":setting": { S: JSON.stringify(option) },
           ":name": { S: option.name },
           ":description": { S: option.description },
           ":updatedAt": { S: new Date().toISOString() },
+          ":status": { S: cron.Status },
         },
         ExpressionAttributeNames: {
           "#Name": "Name",
         },
       })
     );
-  } catch {
+  } catch (e) {
+    console.log(e);
     throw new Error("Failed to update cron");
   }
 }

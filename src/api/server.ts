@@ -15,6 +15,7 @@ import {
   handleGetCronLogDetail,
   handleGetCronLogs,
   handleUpdateCron,
+  handleUpdateCronStatus,
 } from "./handlers/cron-handler";
 
 const app = express();
@@ -35,6 +36,10 @@ app.post("/v1/workspace/:workspaceId/cron", handleCreateCron);
 app.delete("/v1/workspace/:workspaceId/cron/:cronId", handleDeleteCron);
 app.get("/v1/workspace/:workspaceId/cron", handleGetCronList);
 app.post("/v1/workspace/:workspaceId/cron/:cronId", handleUpdateCron);
+app.post(
+  "/v1/workspace/:workspaceId/cron/:cronId/status",
+  handleUpdateCronStatus
+);
 app.get("/v1/workspace/:workspaceId/cron/:cronId", handleGetCron);
 app.get("/v1/workspace/:workspaceId/cron/:cronId/logs", handleGetCronLogs);
 

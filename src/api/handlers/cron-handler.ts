@@ -236,6 +236,43 @@ export const handleUpdateCron = withWorkspaceSession<
   return new APISuccessResponse({ success: true });
 });
 
+export const handleUpdateCronStatus = withWorkspaceSession<
+  { status: "ENABLED" | "DISABLED" },
+  { cronId: string }
+>(async ({ params, workspaceId, body }) => {
+  const cronId = params?.cronId;
+  const status = body?.status;
+
+  if (!cronId) {
+    return new APIFailedResponse("Cron ID is required", 400);
+  }
+
+  if (!status) {
+    return new APIFailedResponse("Status is required", 400);
+  }
+
+  if (!["ENABLED", "DISABLED"].includes(status)) {
+    return new APIFailedResponse("Invalid status", 400);
+  }
+
+  const cron = await getCron(cronId);
+
+  if (!cron) {
+    return new APIFailedResponse("Cron not found", 404);
+  }
+
+  if (cron.WorkspaceId !== workspaceId) {
+    return new APIFailedResponse("Forbidden", 403);
+  }
+
+  cron.Status = status;
+
+  console.log(cron.Setting);
+
+  await updateCron(cron, cron.Setting);
+  return new APISuccessResponse({ success: true });
+});
+
 export const handleDeleteCron = withWorkspaceSession<
   unknown,
   { cronId: string }
